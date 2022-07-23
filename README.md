@@ -1,11 +1,11 @@
 # pntify
 ### PaiNT notIFY or Paint NoTIFY
-This is a script, written in POSIX compliant shell script, that fetches notifications and alerts from [3DSPaint](https://3dspaint.com)/[DSiPaint](https://dsipaint.com) (*Paint) and outputs them to STDOUT.  It is meant to be used in other scripts, for things like statusbar modules, etc., but it could also just be used as a lightweight way to access *Paint notifications if you're too lazy to open a browser.
+This is a script, written in POSIX compliant shell script, that fetches notifications and alerts from [3DSPaint](https://3dspaint.com)/[DSiPaint](https://dsipaint.com) (\*Paint) and outputs them to STDOUT.  It is meant to be used in other scripts, for things like statusbar modules, etc., but it could also just be used as a lightweight way to access \*Paint notifications if you're too lazy to open a browser.
 
 As it *is* POSIX compliant shell script, it can be used on any system with a POSIX compliant shell installed.  That being said, there are some external dependencies:
 
 ## Dependencies
- - *Coreutils* - You probably already have these on a *nix system.  They don't have to necessarily be the GNU Coreutils.
+ - *Coreutils* - You probably already have these on a \*nix system.  They don't have to necessarily be the GNU Coreutils.
  - *Curl* - You probably also have this already installed.
 
 ## Optional Dependencies
