@@ -1,0 +1,117 @@
+#!/bin/sh
+## PaiNT notIFY or Paint NoTIFY: Fetch notifications and alerts from 3DSPaint/DSiPaint
+## Devin Lloyd (devin@souldj673.xyz)
+## Licensed under the GPLv3, see LICENSE
+
+CACHE="$HOME/.cache/pntify";
+SILENT="";
+USERNAME="";
+PASSWORD="";
+
+## Allow using flags to set $USERNAME and $PASSWORD
+
+authentication() {
+  ## Authentication: Fetch session token
+
+  ## Check for pass and gpg
+  if [ -z $INSECURE ]; then {
+    command -V gpg >/dev/null 2>&1 && GPG="gpg" || 
+      command -V gpg2 >/dev/null 2>&1 && GPG="gpg2"
+
+    [ -z "$GPG" ] && printf "You need to install GPG and GNU Pass to run this script.  Please install and ensure that the binaries are located somewhere in your \$PATH.  Alternatively, you can:\n  1.) Supply your credentials using the \`-u\` and \`-p\` options.\n  2.) Run using the \`-i\` option to save credentials insecurely.\n    !! These are not recommended! !!\n" && exit 1;
+  }
+  fi
+
+  PASSWORD_STORE_DIR="${PASSWORD_STORE_DIR:-$HOME/.password-store}";
+  [ -r "$PASSWORD_STORE_DIR/.gpg-id" ] || {
+    printf "You need to run \`pass init <YourGPGEmail>\` to set up a password archive.\n" ;
+      printf "(If you also haven't already generated a GPG key pair, run \`'$GPG' --full-generate-key\`.\n)";
+      exit 2;
+    };
+
+    ## Display warning if running insecurely
+    [ -z $INSECURE ] || printf "You are running this in an insecure mode.  Your credentials will be stored in plaintext, readable by anybody or program with access to your cookie file.  This is strongly unadvised, and it is recommended that you install \`gpg\` and \`pass\`.\n";
+
+  # Fetch credentials
+  ## Read from pass, unless $INSECURE is set or if there are no 3DSPaint passwords saved
+  [ -z $INSECURE ] && [ -z $BADCRED ] && USERS="$(pass show 3DSPaint 2>/dev/null | sed '1d;s/.*\ //g;s/\[00m//g;s/\[0m//g')";
+  if [ -z "$USERNAME" ] && [ -n "$USERS" ] && [ -z $BADCRED ]; then
+    ## Select credentials automatically if there's only one user
+    [ "$(printf "$USERS" | wc -w)" = "1" ] && export USERNAME="$USERS" && export PASSWORD="$(pass show 3DSPaint/$USERS)" && export PASSVER="$PASSWORD";
+
+    ## Ask for selection if more than one user is saved ## Finish
+    [ "$(printf "$USERS" | wc -w)" ]
+  fi
+
+  ## Fetch credentials from user if there are none saved
+  [ -z "$USERNAME" ] && printf 'Please enter your username: ' && read -r USERNAME;
+  if [ -z "$PASSWORD" ]; then
+    printf 'Please enter your password (Won'\''t appear for security): ' && stty -echo && read -r PASSWORD;
+    printf '\nAnd again, just to verify: ' && read -r PASSVER && stty echo;
+  fi
+
+  if [ "$PASSWORD" = "$PASSVER" ]; then
+    ## Make sure the directory that we're saving the cookie in actually exists first
+    [ -d "$HOME/.cache/pntify" ] || mkdir -p "$HOME/.cache/pntify";
+
+      ## Grab session cookie
+      REPLY="$(curl -X POST -c "$HOME/.cache/pntify/session" --data-urlencode "username=$USERNAME" --data-urlencode "password=$PASSWORD" --no-progress-meter https://3dspaint.com/index.php 2>&1)"
+
+      ## 3DS/DSiPaint will return the main page if the credentials are incorrect.  $REPLY should be empty.
+      [ -n "$REPLY" ] && {
+        case "$REPLY" in
+          *curl*) ### No Internet connection 
+            printf '\n\nUnable to connect to 3DSPaint.  Check your internet connection.\n';
+            rm "$HOME/.cache/pntify/session";
+            exit 3;; 
+          *) 
+            printf '\n\nYour credentials were incorrect, please try again.\n' && unset PASSWORD && unset PASSVER && unset USERNAME && BADCRED=1 authentication;; ### Bad Credentials
+        esac
+      };
+
+      [ -z $BADCRED ] && [ -z $SILENT ] && printf '\nLogin successful!\n' &&
+
+      ## Store credentials
+      [ -z $INSECURE ] && printf "$PASSWORD" | pass insert -ef "3DSPaint/$USERNAME";
+      return;
+    else
+      ## Reinitiate prompt, but remember username
+      export USERNAME;
+      unset PASSWORD;
+      unset PASSVER;
+      printf '\n\nYour passwords didn'\''t match, try again.\n';
+      authentication;
+  fi
+  return;
+}
+
+pup() {
+  ## Page UPdate: Download up-to-date pages
+  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/main.php" --silent https://3dspaint.com/index.php
+  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/friends.php" --silent https://3dspaint.com/includes/ajax.section.my_friends.php
+  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/notifications.php" --silent https://3dspaint.com/includes/ajax.section.my_alerts.php
+}
+
+notif() {
+  ## Notification Parsing
+  for x in "$(cat .cache/pntify/notifications.php | sed 's/},{/}~{/g ; s/^\[//g ; s/\]$//g' | tr '~' '\n')";
+  do 
+    echo "$x" | tr ',' '\n' | sed 's/{//g ; s/}//g' |
+      grep -e "name" -e "title" -e "type" -e "min" ; done;
+    }
+
+## Session already obtained? No? Obtain. Yes? Move on.
+[ -f "$HOME/.cache/pntify/session" ] || authentication;
+
+## Main already downloaded & within expiration? (Save bandwidth)
+LASTUP="$(stat /home/souldj673/.cache/pntify/main.php 2>/dev/null | grep -o 'Modify: .*[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]')";
+[ -f "$HOME/.cache/pntify/main.php" ] && [ "$(printf "$LASTUP" | cut -d ' ' -f2)" = "$(date +%Y-%m-%d)" ] && [ "$(printf "$LASTUP" | cut  -d ' ' -f3 | cut -d ':' -f1)" ] && [ -z "$REFRESH" ] || pup;
+
+## Check token validity, fetch new token if invalid
+[ "$(grep -o "Welcome, Guest." "$HOME/.cache/pntify/main.php")" = "Welcome, Guest." ] && rm "$HOME/.cache/pntify/session" && authentication && pup;
+
+## Parse and Output
+grep -o '. messages' .cache/pntify/main.php;
+
+
+exit 0;
