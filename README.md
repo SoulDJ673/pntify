@@ -15,7 +15,7 @@ As it *is* POSIX compliant shell script, it can be used on any system with a POS
 Installing the optional dependencies is highly recommended, though not required.  If they are not installed, credentials will be stored in plaintext, and viewable by anybody with access to your system.  If you still wish to continue running this script like this, use the -i option.
 
 ## Script Installation
- 1. Run `curl -O "https://git.souldj673.xyz:6733/souldj673/pntify.git/plain/pntify"`, download the script [in your browser](https://git.souldj673.xyz:6733/souldj673/pntify.git/plain/pntify), or just clone the repo with `git clone git://git.souldj673.xyz:6777/souldj673/pntify.git`.
+ 1. Run `curl -O "https://git.souldj673.xyz:6733/souldj673/pntify.git/plain/pntify"`, download the script [in your browser](https://git.souldj673.xyz:6733/pntify/raw/pntify), or just clone the repo.
  2. Mark it as executable with `chmod +x pntify` or with some other method.
  3. Ensure that the script is somewhere in your $PATH and run `pntify` in your shell to verify.
  4. Use it in a script or something idrc
