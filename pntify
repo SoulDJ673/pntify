@@ -52,17 +52,17 @@ authentication() {
 
   if [ "$PASSWORD" = "$PASSVER" ]; then
     ## Make sure the directory that we're saving the cookie in actually exists first
-    [ -d "$HOME/.cache/pntify" ] || mkdir -p "$HOME/.cache/pntify";
+    [ -d "$CACHE" ] || mkdir -p "$CACHE";
 
       ## Grab session cookie
-      REPLY="$(curl -X POST -c "$HOME/.cache/pntify/session" --data-urlencode "username=$USERNAME" --data-urlencode "password=$PASSWORD" --no-progress-meter https://3dspaint.com/index.php 2>&1)"
+      REPLY="$(curl -X POST -c "$CACHE/session" --data-urlencode "username=$USERNAME" --data-urlencode "password=$PASSWORD" --no-progress-meter https://3dspaint.com/index.php 2>&1)"
 
       ## 3DS/DSiPaint will return the main page if the credentials are incorrect.  $REPLY should be empty.
       [ -n "$REPLY" ] && {
         case "$REPLY" in
           *curl*) ### No Internet connection 
             printf '\n\nUnable to connect to 3DSPaint.  Check your internet connection.\n';
-            rm "$HOME/.cache/pntify/session";
+            rm "$CACHE/session";
             exit 3;; 
           *) 
             printf '\n\nYour credentials were incorrect, please try again.\n' && unset PASSWORD && unset PASSVER && unset USERNAME && BADCRED=1 authentication;; ### Bad Credentials
@@ -87,31 +87,31 @@ authentication() {
 
 pup() {
   ## Page UPdate: Download up-to-date pages
-  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/main.php" --silent https://3dspaint.com/index.php
-  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/friends.php" --silent https://3dspaint.com/includes/ajax.section.my_friends.php
-  curl -b "$HOME/.cache/pntify/session" -o "$HOME/.cache/pntify/notifications.php" --silent https://3dspaint.com/includes/ajax.section.my_alerts.php
+  curl -b "$CACHE/session" -o "$CACHE/main.php" --silent https://3dspaint.com/index.php
+  curl -b "$CACHE/session" -o "$CACHE/friends.php" --silent https://3dspaint.com/includes/ajax.section.my_friends.php
+  curl -b "$CACHE/session" -o "$CACHE/notifications.php" --silent https://3dspaint.com/includes/ajax.section.my_alerts.php
 }
 
 notif() {
   ## Notification Parsing
-  for x in "$(cat .cache/pntify/notifications.php | sed 's/},{/}~{/g ; s/^\[//g ; s/\]$//g' | tr '~' '\n')";
+  for x in "$(cat "$CACHE/notifications.php" | sed 's/},{/}~{/g ; s/^\[//g ; s/\]$//g' | tr '~' '\n')";
   do 
     echo "$x" | tr ',' '\n' | sed 's/{//g ; s/}//g' |
       grep -e "name" -e "title" -e "type" -e "min" ; done;
     }
 
 ## Session already obtained? No? Obtain. Yes? Move on.
-[ -f "$HOME/.cache/pntify/session" ] || authentication;
+[ -f "$CACHE/session" ] || authentication;
 
 ## Main already downloaded & within expiration? (Save bandwidth)
-LASTUP="$(stat /home/souldj673/.cache/pntify/main.php 2>/dev/null | grep -o 'Modify: .*[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]')";
-[ -f "$HOME/.cache/pntify/main.php" ] && [ "$(printf "$LASTUP" | cut -d ' ' -f2)" = "$(date +%Y-%m-%d)" ] && [ "$(printf "$LASTUP" | cut  -d ' ' -f3 | cut -d ':' -f1)" ] && [ -z "$REFRESH" ] || pup;
+LASTUP="$(stat "$CACHE/main.php" 2>/dev/null | grep -o 'Modify: .*[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]:[[:digit:]][[:digit:]]')";
+[ -f "$CACHE/main.php" ] && [ "$(printf "$LASTUP" | cut -d ' ' -f2)" = "$(date +%Y-%m-%d)" ] && [ "$(printf "$LASTUP" | cut  -d ' ' -f3 | cut -d ':' -f1)" ] && [ -z "$REFRESH" ] || pup;
 
 ## Check token validity, fetch new token if invalid
-[ "$(grep -o "Welcome, Guest." "$HOME/.cache/pntify/main.php")" = "Welcome, Guest." ] && rm "$HOME/.cache/pntify/session" && authentication && pup;
+[ "$(grep -o "Welcome, Guest." "$CACHE/main.php")" = "Welcome, Guest." ] && rm "$CACHE/session" && authentication && pup;
 
 ## Parse and Output
-grep -o '. messages' .cache/pntify/main.php;
+grep -o '. messages' $CACHE/main.php;
 
 
 exit 0;
